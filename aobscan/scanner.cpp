@@ -85,9 +85,9 @@ std::vector<DWORD> Scanner::kmp_scan(const HANDLE& handle, const char* pattern, 
 
 		j = 0;
 		for (int i = 0; i < lpNumberOfBytesRead; ++i) {
-			while (j > 0 && buffer[i] != pattern[j])
+			while (j > 0 && buffer[i] != pattern[j] && mask[j] != 'x')
 				j = table[j - 1];
-			if (buffer[i] == pattern[j]) {
+			if ((buffer[i] == pattern[j]) || (mask[j] == 'x')) {
 				if (j == pattern_length - 1) {
 					result.push_back(i - pattern_length + 1);
 					j = table[j];
