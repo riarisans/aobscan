@@ -19,23 +19,6 @@ std::vector<std::string> split(std::string str, char delimiter)
 	return result;
 }
 
-std::vector<DWORD> Scanner::find_pattern(const char* buffer, int buffer_length, const char* pattern, int pattern_length, const char* mask) {
-	std::vector<DWORD> result;
-	for (unsigned long i = 0; i < buffer_length - pattern_length; ++i) {
-		bool found = true;
-		for(int j = 0; j < pattern_length; ++j) {
-			if (mask[j] != 'x' && pattern[j] != buffer[i+j]) {
-				found = false;
-				break;
-			}
-		}
-		if (found) {
-			result.push_back(i);
-		}
-	}
-	return result;
-}
-
 std::vector<DWORD> Scanner::scan(const HANDLE& handle, const std::string& pattern) {
 	std::vector<char> mask;
 	std::vector<char> pattern_char;
