@@ -1,2 +1,8 @@
 .vs
+.vscode
+x32
 x64
+
+Debug
+aobscan/Debug
+aobscan/aobscan.vcxproj.filters
