@@ -33,7 +33,7 @@ std::vector<DWORD> Scanner::scan(const HANDLE& handle, const std::string& patter
 			pattern_char.push_back((char)strtol(parsed_pattern[i].c_str(), NULL, 16));
 		}
 	}
-	return scan(handle, pattern_char.data(), mask.data(), mask.size());
+	return kmp_scan(handle, pattern_char.data(), mask.data(), mask.size());
 }
 
 std::vector<DWORD> Scanner::scan(const HANDLE& handle, const char* pattern, const char* mask, int length) {
@@ -56,6 +56,43 @@ std::vector<DWORD> Scanner::scan(const HANDLE& handle, const char* pattern, cons
 			}
 			if (found) {
 				result.push_back(i);
+			}
+		}
+		delete[] buffer;
+	}
+	return result;
+}
+
+std::vector<DWORD> Scanner::kmp_scan(const HANDLE& handle, const char* pattern, const char* mask, int pattern_length) {
+	MEMORY_BASIC_INFORMATION mbi;
+	SIZE_T lpNumberOfBytesRead;
+	char* buffer;
+	std::vector<DWORD> result;
+
+	for (SIZE_T base_addr = 0x1000000; VirtualQueryEx(handle, (LPCVOID)base_addr, &mbi, sizeof(MEMORY_BASIC_INFORMATION)); base_addr += mbi.RegionSize) {
+		if (mbi.Protect != PAGE_READWRITE || mbi.Type != MEM_PRIVATE) continue;
+		buffer = new char[mbi.RegionSize];
+		ReadProcessMemory(handle, mbi.BaseAddress, buffer, mbi.RegionSize, &lpNumberOfBytesRead);
+
+		int j = 0;
+		std::vector<int> table(pattern_length, 0);
+		for (int i = 1; i < pattern_length; ++i) {
+			while (j > 0 && pattern[i] != pattern[j])
+				j = table[j - 1];
+			if (pattern[i] == pattern[j])
+				table[i] = ++j;
+		}
+
+		j = 0;
+		for (int i = 0; i < lpNumberOfBytesRead; ++i) {
+			while (j > 0 && buffer[i] != pattern[j])
+				j = table[j - 1];
+			if (buffer[i] == pattern[j]) {
+				if (j == pattern_length - 1) {
+					result.push_back(i - pattern_length + 1);
+					j = table[j];
+				}
+				else j++;
 			}
 		}
 		delete[] buffer;
