@@ -59,14 +59,14 @@ std::vector<DWORD> Scanner::scan(const HANDLE& handle, const char* pattern, cons
 	char* buffer;
 	std::vector<DWORD> result;
 
-	for (SIZE_T base_addr = 0x1000000; VirtualQueryEx(handle, (LPCVOID)base_addr, &mbi, sizeof(MEMORY_BASIC_INFORMATION)); base_addr += mbi.RegionSize) {
+	for (SIZE_T base_addr = 0x0; VirtualQueryEx(handle, (LPCVOID)base_addr, &mbi, sizeof(MEMORY_BASIC_INFORMATION)); base_addr += mbi.RegionSize) {
 		if (mbi.Protect != PAGE_READWRITE || mbi.Type != MEM_PRIVATE) continue;
 		buffer = new char[mbi.RegionSize];
 		ReadProcessMemory(handle, mbi.BaseAddress, buffer, mbi.RegionSize, &lpNumberOfBytesRead);
 		for (unsigned long i = 0; i < lpNumberOfBytesRead - length; ++i) {
 			bool found = true;
 			for (int j = 0; j < length; ++j) {
-				if (mask[j] != 'x' && pattern[j] != buffer[i + j]) {
+				if (mask[j] != 'x' && pattern[j] != *(char*)((DWORD)buffer + i + j)) {
 					found = false;
 					break;
 				}
