@@ -33,7 +33,7 @@ std::vector<DWORD> Scanner::scan(const HANDLE& handle, const std::string& patter
 			pattern_char.push_back((char)strtol(parsed_pattern[i].c_str(), NULL, 16));
 		}
 	}
-	return kmp_scan(handle, pattern_char.data(), mask.data(), mask.size());
+	return scan(handle, pattern_char.data(), mask.data(), mask.size());
 }
 
 std::vector<DWORD> Scanner::scan(const HANDLE& handle, const char* pattern, const char* mask, int length) {
@@ -43,7 +43,13 @@ std::vector<DWORD> Scanner::scan(const HANDLE& handle, const char* pattern, cons
 	std::vector<DWORD> result;
 
 	for (SIZE_T base_addr = 0x0; VirtualQueryEx(handle, (LPCVOID)base_addr, &mbi, sizeof(MEMORY_BASIC_INFORMATION)); base_addr += mbi.RegionSize) {
-		if (mbi.Protect != PAGE_READWRITE || mbi.Type != MEM_PRIVATE) continue;
+		bool valid = mbi.State == MEM_COMMIT;
+		valid &= ((mbi.Protect & PAGE_GUARD) == 0);
+		valid &= ((mbi.Protect & PAGE_NOACCESS) == 0);
+		valid &= (mbi.Type == MEM_PRIVATE) || (mbi.Type == MEM_IMAGE);
+
+		if (!valid) continue;
+
 		buffer = new char[mbi.RegionSize];
 		ReadProcessMemory(handle, mbi.BaseAddress, buffer, mbi.RegionSize, &lpNumberOfBytesRead);
 		for (unsigned long i = 0; i < lpNumberOfBytesRead - length; ++i) {
@@ -55,7 +61,7 @@ std::vector<DWORD> Scanner::scan(const HANDLE& handle, const char* pattern, cons
 				}
 			}
 			if (found) {
-				result.push_back(i);
+				result.push_back(i + base_addr);
 			}
 		}
 		delete[] buffer;
@@ -63,39 +69,7 @@ std::vector<DWORD> Scanner::scan(const HANDLE& handle, const char* pattern, cons
 	return result;
 }
 
-std::vector<DWORD> Scanner::kmp_scan(const HANDLE& handle, const char* pattern, const char* mask, int pattern_length) {
-	MEMORY_BASIC_INFORMATION mbi;
-	SIZE_T lpNumberOfBytesRead;
-	char* buffer;
-	std::vector<DWORD> result;
-
-	for (SIZE_T base_addr = 0x1000000; VirtualQueryEx(handle, (LPCVOID)base_addr, &mbi, sizeof(MEMORY_BASIC_INFORMATION)); base_addr += mbi.RegionSize) {
-		if (mbi.Protect != PAGE_READWRITE || mbi.Type != MEM_PRIVATE) continue;
-		buffer = new char[mbi.RegionSize];
-		ReadProcessMemory(handle, mbi.BaseAddress, buffer, mbi.RegionSize, &lpNumberOfBytesRead);
-
-		int j = 0;
-		std::vector<int> table(pattern_length, 0);
-		for (int i = 1; i < pattern_length; ++i) {
-			while (j > 0 && pattern[i] != pattern[j])
-				j = table[j - 1];
-			if (pattern[i] == pattern[j])
-				table[i] = ++j;
-		}
-
-		j = 0;
-		for (int i = 0; i < lpNumberOfBytesRead; ++i) {
-			while (j > 0 && buffer[i] != pattern[j] && mask[j] != 'x')
-				j = table[j - 1];
-			if ((buffer[i] == pattern[j]) || (mask[j] == 'x')) {
-				if (j == pattern_length - 1) {
-					result.push_back(i - pattern_length + 1);
-					j = table[j];
-				}
-				else j++;
-			}
-		}
-		delete[] buffer;
-	}
-	return result;
+std::vector<DWORD> Scanner::new_scan(const HANDLE& handle, const char* pattern, const char* mask, int length) {
+	std::vector<DWORD> vec;
+	return vec;
 }
